@@ -1,28 +1,40 @@
 from flask import Flask, request
 from uuid import uuid1
 from db import Connection
+from models.user_model import User  # Import the User model
+from pydantic import ValidationError
+
 app = Flask(__name__)
 db = Connection('flask_mongo_crud')
 
-
 @app.post("/user")
 def insert_user():
+    try:
+        # Parse and validate request data
+        user_data = User(**request.json)
 
-    _id = str(uuid1().hex)
+        # with model 
+        # user_data = dict(request.json)
 
-    content = dict(request.json)
-    content.update({"_id": _id})
+        # Generate a unique ID
+        _id = str(uuid1().hex)
+        user_dict = user_data.dict()
+        user_dict.update({"_id": _id})
 
-    result = db.user.insert_one(content)
-    if not result.inserted_id:
-        return {"message": "Failed to insert"}, 500
+        # Insert into database
+        result = db.user.insert_one(user_dict)
+        if not result.inserted_id:
+            return {"message": "Failed to insert"}, 500
 
-    return {
-        "message": "Success",
-        "data": {
-            "user": result.inserted_id
-        }
-    }, 200
+        return {
+            "message": "Success",
+            "data": {
+                "user": str(result.inserted_id)
+            }
+        }, 200
+    except ValidationError as e:
+        # Return validation errors
+        return {"message": "Validation failed", "errors": e.errors()}, 400
 
 
 @app.get("/user/<user_id>/")
